@@ -14,9 +14,9 @@ object VisitMosProbability {
     * @param visitsInPeriod how often each kid visits in a period
     * @param periodLength   number of possible visits in a period
     */
-  private final case class TrialParams(kids: Int,
-                                       visitsInPeriod: Int,
-                                       periodLength: Int)
+  final case class TrialParams(kids: Int,
+                               visitsInPeriod: Int,
+                               periodLength: Int)
 
   /**
     * Creates the set of visits for one kid. This is a set
@@ -35,51 +35,56 @@ object VisitMosProbability {
   }
 
   /**
-    * Creates a visit set for each kid, then computes the number of visit
+    * Creates a visit set for each kid, then computes the visit
     * slots all the kids were present at.
     *
     * @param params the trial params
-    * @return the number of visit slots all the kids were at
+    * @return the visit slots all the kids were at
     */
-  def timesAllAreThere(params: TrialParams): Int = {
+  def slotsWhenAllAreThere(params: TrialParams): Set[Int] = {
     val visits = Seq.fill(params.kids)(createVisits(params))
-    intersectSets(visits).size
+    intersectSets(visits)
+  }
+
+  def fractionOfOnesVisitsWhenAllAreThere(params: TrialParams): Double = {
+    slotsWhenAllAreThere(params).size.toDouble / params.visitsInPeriod
   }
 
   /**
     * Repeats a trial, returning a sequence of trial outcomes.
     *
     * @param numTrials number of trials to run
-    * @param params the parameters for each trial
-    * @param aTrial the trial to be run
+    * @param params    the parameters for each trial
+    * @param aTrial    the trial to be run
     * @return a sequence of trial outcomes
     */
-  def trials(numTrials: Int,
-             params: TrialParams
-            )(aTrial: TrialParams => Int): Seq[Int] = {
+  def trials[A](numTrials: Int,
+                params: TrialParams
+               )(aTrial: TrialParams => A): Seq[A] = {
 
     Seq.fill(numTrials)(aTrial(params))
   }
 
-  def numTimesAllAreThereByFormula(params: TrialParams): Double = {
+  def numSlotsAllAreThereByFormula(params: TrialParams): Double = {
     params.periodLength *
       math.pow(params.visitsInPeriod.toDouble / params.periodLength.toDouble, params.kids)
   }
 
-  def numTimesAllAreThereByExperiment(numTrials: Int, params: TrialParams): Double = {
-    val theTrials = trials(numTrials, params)(timesAllAreThere)
-    theTrials.sum.toDouble / theTrials.size.toDouble
+  def numSlotsAllAreThereByExperiment(numTrials: Int, params: TrialParams): Double = {
+    val theTrials = trials(numTrials, params)(slotsWhenAllAreThere).map(_.size)
+    mean(theTrials)
   }
 
-  def numTimesAllIsThereGivenOneIsThereByFormula(params: TrialParams): Double = {
-    numTimesAllAreThereByFormula(params.copy(kids = params.kids - 1))
+  def numSlotsAllAreThereGivenOneIsThereByFormula(params: TrialParams): Double = {
+    params.visitsInPeriod *
+      math.pow(params.visitsInPeriod.toDouble / params.periodLength.toDouble, params.kids - 1)
   }
 
-  def numTimesAllIsThereGivenOneIsThereByExperiment(numTrials: Int,
-                                                    params: TrialParams): Double = {
+  def numSlotsAllAreThereGivenOneIsThereByExperiment(numTrials: Int,
+                                                     params: TrialParams): Double = {
 
-    val theTrials = trials(numTrials, params)
-    theTrials.sum.toDouble / theTrials.size.toDouble
+    val theTrials = trials(numTrials, params)(fractionOfOnesVisitsWhenAllAreThere)
+    mean(theTrials) * params.visitsInPeriod
   }
 
   /**
@@ -91,5 +96,9 @@ object VisitMosProbability {
     */
   def intersectSets[A](sets: Seq[Set[A]]): Set[A] = {
     sets.reduceLeft((lhs, rhs) => lhs.intersect(rhs))
+  }
+
+  private def mean[A](ts: Iterable[A])(implicit converter: Numeric[A]): Double = {
+    converter.toDouble(ts.sum) / ts.size
   }
 }
