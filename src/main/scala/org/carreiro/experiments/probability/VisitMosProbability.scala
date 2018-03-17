@@ -95,7 +95,7 @@ object VisitMosProbability {
     * @return the intersection of all the sets
     */
   def intersectSets[A](sets: Seq[Set[A]]): Set[A] = {
-    sets.reduceLeft((lhs, rhs) => lhs.intersect(rhs))
+    sets.reduceLeft((l, r) => l.intersect(r))
   }
 
   private def mean[A](ts: Iterable[A])(implicit converter: Numeric[A]): Double = {
